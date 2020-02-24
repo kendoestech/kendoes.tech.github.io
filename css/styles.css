@@ -1476,6 +1476,9 @@ footer {
 .single-project .project-description {
 	margin-bottom: 25px;
 }
+.single-project .project-description p {
+	margin-top: 10px;
+}
 .single-project .button {
 	margin-left: 0;
 }
