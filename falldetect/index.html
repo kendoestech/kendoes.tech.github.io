@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fall Detect Trigger</title>
+    <style>
+        :root {
+            --green: #22c55e;
+            --red: #ef4444;
+            --gray: #9ca3af;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --border: #d1d5db;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 16px;
+            background: var(--light);
+            color: var(--dark);
+        }
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.25rem;
+            margin: 0 0 16px;
+            text-align: center;
+        }
+        .settings-toggle {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: var(--dark);
+            cursor: pointer;
+            text-align: left;
+            margin-bottom: 12px;
+        }
+        .settings-panel {
+            display: none;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: #fff;
+        }
+        .settings-panel.open { display: block; }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            margin-top: 12px;
+        }
+        label:first-child { margin-top: 0; }
+        input[type="text"], input[type="password"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            -webkit-appearance: none;
+        }
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .btn-row button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .btn-save { background: var(--dark); color: #fff; }
+        .btn-clear { background: var(--border); color: var(--dark); }
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--gray);
+            flex-shrink: 0;
+        }
+        .status-dot.connected { background: var(--green); }
+        .status-dot.error { background: var(--red); }
+        .btn-connect {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--dark);
+            color: #fff;
+            margin-bottom: 16px;
+            touch-action: manipulation;
+        }
+        .btn-connect.connected {
+            background: var(--red);
+        }
+        .controls {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .btn-publish {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--green);
+            color: #fff;
+            margin-top: 12px;
+            touch-action: manipulation;
+        }
+        .btn-publish:disabled {
+            background: var(--border);
+            color: var(--gray);
+            cursor: not-allowed;
+        }
+        .last-publish {
+            font-size: 0.8rem;
+            color: var(--gray);
+            text-align: center;
+            margin-top: 8px;
+        }
+        .log-area {
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.75rem;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            line-height: 1.6;
+        }
+        .log-area .error { color: var(--red); }
+        .disclaimer {
+            font-size: 0.7rem;
+            color: var(--gray);
+            text-align: center;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fall Detect Trigger</h1>
+
+        <button class="settings-toggle" onclick="toggleSettings()">Settings</button>
+
+        <div id="settingsPanel" class="settings-panel">
+            <label for="host">Broker Host</label>
+            <input type="text" id="host" placeholder="your-cluster.s1.eu.hivemq.cloud">
+
+            <label for="port">Port</label>
+            <input type="number" id="port" value="8884">
+
+            <label for="username">Username</label>
+            <input type="text" id="username" placeholder="(optional)">
+
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="(optional)">
+
+            <label for="topic">Topic</label>
+            <input type="text" id="topic" value="falldetect/test">
+
+            <div class="btn-row">
+                <button class="btn-save" onclick="saveSettings()">Save</button>
+                <button class="btn-clear" onclick="clearSettings()">Clear</button>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <span id="statusDot" class="status-dot"></span>
+            <span id="statusText">Disconnected</span>
+        </div>
+
+        <button id="btnConnect" class="btn-connect" onclick="toggleConnection()">Connect</button>
+
+        <div class="controls">
+            <label for="deviceId">Device ID</label>
+            <input type="text" id="deviceId" value="test-phone">
+
+            <button id="btnPublish" class="btn-publish" onclick="publishFallEvent()" disabled>Send Fall Event</button>
+            <div id="lastPublish" class="last-publish"></div>
+        </div>
+
+        <div id="logArea" class="log-area"></div>
+
+        <p class="disclaimer">Testing tool. Use a restricted MQTT account with limited publish permissions.</p>
+    </div>
+
+    <script src="settings.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script>
+        let client = null;
+
+        function toggleSettings() {
+            document.getElementById('settingsPanel').classList.toggle('open');
+        }
+
+        function saveSettings() {
+            const settings = {
+                host: document.getElementById('host').value,
+                port: document.getElementById('port').value,
+                username: document.getElementById('username').value,
+                topic: document.getElementById('topic').value,
+                deviceId: document.getElementById('deviceId').value
+            };
+            localStorage.setItem('mqtt-trigger-settings', JSON.stringify(settings));
+            sessionStorage.setItem('mqtt-trigger-password', document.getElementById('password').value);
+            log('Settings saved');
+        }
+
+        function clearSettings() {
+            localStorage.removeItem('mqtt-trigger-settings');
+            sessionStorage.removeItem('mqtt-trigger-password');
+            document.getElementById('host').value = '';
+            document.getElementById('port').value = '8884';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('topic').value = 'falldetect/test';
+            log('Settings cleared');
+        }
+
+        function loadSettings() {
+            // Defaults from settings.js (loaded via script tag)
+            var defaults = (typeof DEFAULT_SETTINGS !== 'undefined') ? DEFAULT_SETTINGS : {};
+
+            // localStorage overrides defaults
+            var saved = {};
+            var raw = localStorage.getItem('mqtt-trigger-settings');
+            if (raw) saved = JSON.parse(raw);
+
+            document.getElementById('host').value = saved.host || defaults.host || '';
+            document.getElementById('port').value = saved.port || defaults.port || '8884';
+            document.getElementById('username').value = saved.username || defaults.username || '';
+            document.getElementById('topic').value = saved.topic || defaults.topic || 'falldetect/test';
+            document.getElementById('deviceId').value = saved.deviceId || defaults.deviceId || 'test-phone';
+
+            // Password: sessionStorage > settings.js defaults
+            var pw = sessionStorage.getItem('mqtt-trigger-password');
+            document.getElementById('password').value = pw || defaults.password || '';
+        }
+
+        function updateStatus(state) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const btnConnect = document.getElementById('btnConnect');
+            const btnPublish = document.getElementById('btnPublish');
+
+            dot.className = 'status-dot';
+            if (state === 'connected') {
+                dot.classList.add('connected');
+                text.textContent = 'Connected';
+                btnConnect.textContent = 'Disconnect';
+                btnConnect.classList.add('connected');
+                btnPublish.disabled = false;
+            } else if (state === 'connecting') {
+                text.textContent = 'Connecting...';
+                btnConnect.textContent = 'Connecting...';
+                btnConnect.classList.remove('connected');
+                btnPublish.disabled = true;
+            } else if (state === 'error') {
+                dot.classList.add('error');
+                text.textContent = 'Error';
+                btnConnect.textContent = 'Connect';
+                btnConnect.classList.remove('connected');
+                btnPublish.disabled = true;
+            } else {
+                text.textContent = 'Disconnected';
+                btnConnect.textContent = 'Connect';
+                btnConnect.classList.remove('connected');
+                btnPublish.disabled = true;
+            }
+        }
+
+        function log(message, isError) {
+            const area = document.getElementById('logArea');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            if (isError) entry.classList.add('error');
+            entry.textContent = time + ' ' + message;
+            area.prepend(entry);
+        }
+
+        function toggleConnection() {
+            if (client && client.connected) {
+                client.end();
+                client = null;
+                updateStatus('disconnected');
+                log('Disconnected');
+            } else {
+                connect();
+            }
+        }
+
+        function connect() {
+            const host = document.getElementById('host').value.trim();
+            const port = document.getElementById('port').value.trim() || '8884';
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!host) {
+                log('Enter a broker host in Settings', true);
+                return;
+            }
+
+            const url = 'wss://' + host + ':' + port + '/mqtt';
+            updateStatus('connecting');
+            log('Connecting to ' + url);
+
+            const opts = {
+                clientId: 'fall-trigger-' + Math.random().toString(16).substring(2, 10),
+                clean: true,
+                reconnectPeriod: 0,
+                connectTimeout: 10000
+            };
+            if (username) {
+                opts.username = username;
+                opts.password = password;
+            }
+
+            client = mqtt.connect(url, opts);
+
+            client.on('connect', function () {
+                updateStatus('connected');
+                log('Connected to broker');
+            });
+
+            client.on('error', function (err) {
+                updateStatus('error');
+                log('Error: ' + err.message, true);
+            });
+
+            client.on('close', function () {
+                updateStatus('disconnected');
+            });
+        }
+
+        function publishFallEvent() {
+            if (!client || !client.connected) return;
+
+            const topic = document.getElementById('topic').value.trim();
+            const deviceId = document.getElementById('deviceId').value.trim() || 'test-phone';
+
+            const payload = JSON.stringify({
+                event_type: 'fall_detected',
+                device_id: deviceId,
+                timestamp: new Date().toISOString()
+            });
+
+            client.publish(topic, payload, { qos: 1 }, function (err) {
+                if (err) {
+                    log('Publish failed: ' + err.message, true);
+                } else {
+                    log('Published to ' + topic);
+                    document.getElementById('lastPublish').textContent = 'Last sent: ' + new Date().toLocaleTimeString();
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSettings);
+    </script>
+</body>
+</html>
