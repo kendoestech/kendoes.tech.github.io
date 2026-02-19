@@ -240,7 +240,8 @@
                 port: document.getElementById('port').value,
                 username: document.getElementById('username').value,
                 topic: document.getElementById('topic').value,
-                subscribeTopic: document.getElementById('subscribeTopic').value
+                subscribeTopic: document.getElementById('subscribeTopic').value,
+                payload: document.getElementById('payload').value
             };
             localStorage.setItem('mqtt-trigger-settings', JSON.stringify(settings));
             sessionStorage.setItem('mqtt-trigger-password', document.getElementById('password').value);
@@ -256,6 +257,8 @@
             document.getElementById('password').value = '';
             document.getElementById('topic').value = 'falldetect/test';
             document.getElementById('subscribeTopic').value = 'falldetector/#';
+            var defs = (typeof DEFAULT_SETTINGS !== 'undefined') ? DEFAULT_SETTINGS : {};
+            document.getElementById('payload').value = defs.payload || '{}';
             log('Settings cleared');
         }
 
@@ -278,8 +281,8 @@
             var pw = sessionStorage.getItem('mqtt-trigger-password');
             document.getElementById('password').value = pw || defaults.password || '';
 
-            // Payload from settings.js defaults
-            document.getElementById('payload').value = defaults.payload || '{}';
+            // Payload: localStorage > settings.js defaults
+            document.getElementById('payload').value = saved.payload || defaults.payload || '{}';
         }
 
         function updateStatus(state) {
