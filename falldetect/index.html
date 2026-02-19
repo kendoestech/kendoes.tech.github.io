@@ -185,8 +185,11 @@
             <label for="password">Password</label>
             <input type="password" id="password" placeholder="(optional)">
 
-            <label for="topic">Topic</label>
+            <label for="topic">Publish Topic</label>
             <input type="text" id="topic" value="falldetect/test">
+
+            <label for="subscribeTopic">Subscribe Topic</label>
+            <input type="text" id="subscribeTopic" value="falldetector/#">
 
             <div class="btn-row">
                 <button class="btn-save" onclick="saveSettings()">Save</button>
@@ -202,11 +205,19 @@
         <button id="btnConnect" class="btn-connect" onclick="toggleConnection()">Connect</button>
 
         <div class="controls">
-            <label for="deviceId">Device ID</label>
-            <input type="text" id="deviceId" value="test-phone">
+            <label for="payload">Payload</label>
+            <textarea id="payload" rows="4" style="width:100%;font-family:monospace;font-size:14px;padding:10px;border:1px solid var(--border);border-radius:6px;resize:vertical;"></textarea>
 
-            <button id="btnPublish" class="btn-publish" onclick="publishFallEvent()" disabled>Send Fall Event</button>
+            <button id="btnPublish" class="btn-publish" onclick="publishFallEvent()" disabled>Publish</button>
             <div id="lastPublish" class="last-publish"></div>
+        </div>
+
+        <div class="controls">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <label style="margin:0;">Messages</label>
+                <button onclick="clearMessages()" style="padding:4px 10px;font-size:0.75rem;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer;">Clear</button>
+            </div>
+            <div id="messageArea" class="log-area" style="margin-top:8px;max-height:300px;"></div>
         </div>
 
         <div id="logArea" class="log-area"></div>
@@ -229,7 +240,7 @@
                 port: document.getElementById('port').value,
                 username: document.getElementById('username').value,
                 topic: document.getElementById('topic').value,
-                deviceId: document.getElementById('deviceId').value
+                subscribeTopic: document.getElementById('subscribeTopic').value
             };
             localStorage.setItem('mqtt-trigger-settings', JSON.stringify(settings));
             sessionStorage.setItem('mqtt-trigger-password', document.getElementById('password').value);
@@ -244,6 +255,7 @@
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
             document.getElementById('topic').value = 'falldetect/test';
+            document.getElementById('subscribeTopic').value = 'falldetector/#';
             log('Settings cleared');
         }
 
@@ -260,11 +272,14 @@
             document.getElementById('port').value = saved.port || defaults.port || '8884';
             document.getElementById('username').value = saved.username || defaults.username || '';
             document.getElementById('topic').value = saved.topic || defaults.topic || 'falldetect/test';
-            document.getElementById('deviceId').value = saved.deviceId || defaults.deviceId || 'test-phone';
+            document.getElementById('subscribeTopic').value = saved.subscribeTopic || defaults.subscribeTopic || 'falldetector/#';
 
             // Password: sessionStorage > settings.js defaults
             var pw = sessionStorage.getItem('mqtt-trigger-password');
             document.getElementById('password').value = pw || defaults.password || '';
+
+            // Payload from settings.js defaults
+            document.getElementById('payload').value = defaults.payload || '{}';
         }
 
         function updateStatus(state) {
@@ -350,6 +365,26 @@
             client.on('connect', function () {
                 updateStatus('connected');
                 log('Connected to broker');
+
+                var subTopic = document.getElementById('subscribeTopic').value.trim();
+                if (subTopic) {
+                    client.subscribe(subTopic, { qos: 1 }, function (err) {
+                        if (err) {
+                            log('Subscribe failed: ' + err.message, true);
+                        } else {
+                            log('Subscribed to ' + subTopic);
+                        }
+                    });
+                }
+            });
+
+            client.on('message', function (topic, message) {
+                var text = message.toString();
+                var area = document.getElementById('messageArea');
+                var time = new Date().toLocaleTimeString();
+                var entry = document.createElement('div');
+                entry.textContent = time + ' [' + topic + '] ' + text;
+                area.prepend(entry);
             });
 
             client.on('error', function (err) {
@@ -366,13 +401,7 @@
             if (!client || !client.connected) return;
 
             const topic = document.getElementById('topic').value.trim();
-            const deviceId = document.getElementById('deviceId').value.trim() || 'test-phone';
-
-            const payload = JSON.stringify({
-                event_type: 'fall_detected',
-                device_id: deviceId,
-                timestamp: new Date().toISOString()
-            });
+            const payload = document.getElementById('payload').value;
 
             client.publish(topic, payload, { qos: 1 }, function (err) {
                 if (err) {
@@ -382,6 +411,10 @@
                     document.getElementById('lastPublish').textContent = 'Last sent: ' + new Date().toLocaleTimeString();
                 }
             });
+        }
+
+        function clearMessages() {
+            document.getElementById('messageArea').innerHTML = '';
         }
 
         document.addEventListener('DOMContentLoaded', loadSettings);
