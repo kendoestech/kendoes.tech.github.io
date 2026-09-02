@@ -3,6 +3,7 @@ var DEFAULT_SETTINGS = {
     "port": "8884",
     "username": "FallDetectBridgeService",
     "password": "m3JdF@fDSy@bE84",
-    "topic": "falldetect/test",
-    "deviceId": "7T4FTG"
+    "topic": "falldetector/test",
+    "subscribeTopic": "falldetector/#",
+    "payload": "{\"dp\":\"drop_state\",\"value\":1,\"label\":\"fall\"}"
 };
