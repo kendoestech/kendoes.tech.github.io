@@ -171,6 +171,7 @@ jQuery(document).ready(function($) {
         setTimeout(function(){
             content.load(href, function() {
                 $('#loaded-content meta').remove();
+                content.find('.current-year').text(new Date().getFullYear());
                 $('#loader').hide();
                 content.fadeIn(600);
                 $('#back-button').fadeIn(600);
